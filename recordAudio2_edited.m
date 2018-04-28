@@ -3,10 +3,10 @@ nBits=16;
 nChannels=1;
 time=3; %Recording time in seconds
 
-filePath='recordings/%s%d.mat';
-word='dog'; % word you are recording
+word='bird'; % word you are recording
+filePath='recordings/bird/%s%d.mat';
 startIndex=1;   % start index of recording number 
-repeat=3; % repeat recording
+repeat=25; % repeat recording
 
 
 recObj = audiorecorder(Fs,nBits,nChannels);
