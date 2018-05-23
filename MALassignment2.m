@@ -79,7 +79,7 @@ end
 % 
 %% 2. Method 1
 % *1. Calculating the FFT*
-clear; clc;
+% clear; clc;
 Fs = 8000;
 wordSet = ["bird","cat","cow","dog","horse"];
 dataSet = [];
@@ -138,7 +138,7 @@ for r = 1:5
         for t = 1:length(mag2)
             freqPeaks(t) = freq(ind2(t));
         end
-        freqPeaks = sort(freqPeaks)
+        freqPeaks = sort(freqPeaks);
         dataSet = [dataSet; freqPeaks];
     end
 end
@@ -156,17 +156,19 @@ rng(1);
 opts = statset('Display', 'final');
 [idx, c] = kmeans(dataSet, K, 'Distance', 'cityblock', 'Replicates', 200, 'Options', opts, 'Start', 'cluster');
 
-sens1 = length(find(idx(1:100, :) == 1)) / 100
-sens2 = length(find(idx(100:200, :) == 1)) / 100
-sens3 = length(find(idx(200:300, :) == 1)) / 100
-sens4 = length(find(idx(300:400, :) == 1)) / 100
-sens5 = length(find(idx(400:500, :) == 1)) / 100
+sensitivity1 = [];
+sensitivity1 = [sensitivity1 length(find(idx(1:100, :) == 1)) / 100];
+sensitivity1 = [sensitivity1 length(find(idx(100:200, :) == 2)) / 100];
+sensitivity1 = [sensitivity1 length(find(idx(200:300, :) == 3)) / 100];
+sensitivity1 = [sensitivity1 length(find(idx(300:400, :) == 4)) / 100];
+sensitivity1 = [sensitivity1 length(find(idx(400:500, :) == 5)) / 100]
 
-spec1 = 400 / (100 - length(find(idx(1:100, :) == 1)))
-spec2 = 400 /(100 - length(find(idx(100:200, :) == 1)))
-spec3 = 400 / (100 - length(find(idx(200:300, :) == 1)))
-spec4 = 400 / (100 - length(find(idx(300:400, :) == 1)))
-spec5 = 400 / (100 - length(find(idx(400:500, :) == 1)))
+specificity1 = [];
+specificity1 = [specificity1 length(find(idx([100:500], :) ~= 1))/400];
+specificity1 = [specificity1 length(find(idx([1:100 200:500], :) ~= 2))/400];
+specificity1 = [specificity1 length(find(idx([1:200 300:500], :) ~= 3))/400];
+specificity1 = [specificity1 length(find(idx([1:300 400:500], :) ~= 4))/400];
+specificity1 = [specificity1 length(find(idx([1:400], :) ~= 5))/400]
 
 % figure;
 % plot3(dataSet(idx==1,1), dataSet(idx==1,2),dataSet(idx==1,3), 'b.', 'MarkerSize',12)
@@ -199,7 +201,7 @@ ylabel 'Cluster'
 % * Determine the specificity and sensivity of the models, by comparing each
 % recording against all models in a posterior analysis.
 
-clear; clc;
+% clc;
 wordSet = ["bird", "cat", "cow", "dog", "horse"];
 wordMFCC = zeros(500, 10);
 
@@ -219,7 +221,7 @@ end
 
 
 %%
-clc;
+% clc;
 
 posteriorRes = zeros(500, 5); % [nLogLBird, nLogLCat, nLogLCow, nLogLCow, nLogLHorse] mxn(m is no. of rec; n is likelihood which word it is)
 
@@ -233,10 +235,37 @@ for v = 1:5
     end
 end
 
+minVals = [];
+sensitivity2 = [];
+specificity2 = [];
+for k5=0:4
+    minValsHelp = [];
+    for k3 = 1:100
+        [m i] = min(posteriorRes((100*k5)+k3, :));
+        minValsHelp = [minValsHelp; m i];
+    end
+    minVals = [minVals; minValsHelp];
+    countFirstWord = length(find(minValsHelp(:, 2) == k5+1));
+    sensitivity2 = [sensitivity2 countFirstWord/100];
+end
+
+specificity2 = [specificity2 length(find(minVals(100:500, 2) ~= 1))/400];
+specificity2 = [specificity2 length(find(minVals([1:100 200:500], 2) ~= 2))/400];
+specificity2 = [specificity2 length(find(minVals([1:200 300:500], 2) ~= 3))/400];
+specificity2 = [specificity2 length(find(minVals([1:300 400:500], 2) ~= 4))/400];
+specificity2 = [specificity2 length(find(minVals([1:400], 2) ~= 5))/400]
+sensitivity2
+
 %% 4. Comparing the methods
 % Use the calculated specificity and sensitivity for each method to compare
 % their performance - which method performs the best? Describe why you
 % think that this method is better than the other. List the pros and cons
 % for each of these methods when doing speech recognition.
+clc;
 
+% Judging from the observations below, Kmeans proves to be more accurate.
+sensitivity1
+sensitivity2
 
+specificity1
+specificity2
