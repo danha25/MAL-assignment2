@@ -79,38 +79,36 @@ end
 % 
 %% 2. Method 1
 % *1. Calculating the FFT*
-
+clear; clc;
 Fs = 8000;
 wordSet = ["bird","cat","cow","dog","horse"];
 dataSet = [];
-for r=1:5  
-    for z=1:100
+for r = 1:5  
+    for z = 1:100
         filePath = 'recordings/%s/%s%d.mat';
-        fileName = sprintf(filePath, wordSet(r), wordSet(r),z);
+        fileName = sprintf(filePath, wordSet(r), wordSet(r), z);
         load(fileName);
-
-        f = fft(myRecording);
 
         % * Calculate the FFT of your signals. 
         % * Compute the two-sided and one-sided spectrum of your recordings.
+        f = fft(myRecording);
         L = length(f);
 
         psdTwoSided = abs(f/L);
+        psdOneSided = psdTwoSided(1 : L/2 + 1);
+        psdOneSided(2:end - 1) = psdOneSided(2:end - 1) * 2;
 
-        psdOneSided = psdTwoSided(1:L/2+1);
-        psdOneSided(2:end-1) = psdOneSided(2:end-1)*2;
+        freqLabel = Fs * (0:(L/2))/L; % Frequency labels on the x-axis
 
-        freqLabel = Fs*(0:(L/2))/L; %Frequency labels on the x-axis
-
-        %figure()
-        %subplot(2,1,1)
-        %plot(psdTwoSided)
-        %title('Twosided')
-        %subplot(2,1,2)
-        %plot(psdOneSided)
-        %subplot(2,1,2)
-        %plot(freqLabel,psdOneSided)
-        %title('Onesided')
+        %  figure() % plotting spectrums
+        %  subplot(2,1,1)
+        %  plot(psdTwoSided)
+        %  title('Twosided')
+        %  subplot(2,1,2)
+        %  plot(psdOneSided)
+        %  subplot(2,1,2)
+        %  plot(freqLabel,psdOneSided)
+        %  title('Onesided')
         
         % * Go through the one-sided spectrum in bins of 100Hz 
         % (0Hz – 100Hz, 101Hz-200Hz etc.), and find the most prominent peak 
@@ -118,19 +116,30 @@ for r=1:5
         % * From the most prominent peaks that you just extracted, take the 10
         % higest peak and the corresponding frequencies. The frequencies are the
         % features that we will use in the following cluster analysis.
+        
         NyquistFreq = Fs/2;
 
-        freqBinSize=100; %frequency steps
-        freqBin=round((length(psdOneSided)/NyquistFreq)*freqBinSize); %freqBinSize in samples
-        k=1;
-        for i = 2:freqBin:length(psdOneSided)-freqBin
+        freqBinSize = 100; % frequency steps
+        freqBin = round((length(psdOneSided) / NyquistFreq) * freqBinSize); %freqBinSize in samples
+        k = 1;
+        for i = 2:freqBin:length(psdOneSided) - freqBin
             [mag(k) ind(k)]= max(psdOneSided(i:i + freqBin));
-            freq(k) = f(i+ind(k));
+            freq(k) = freqLabel(i + ind(k));
             k = k + 1;
         end
-        [mag2, ~]= findpeaks([mag ind],'NPeaks', 10);
-
-        dataSet = [dataSet; mag2];
+        totalmag = [];
+        totalInd = [];
+        for q = 1:10
+            [mag2(q), ind2(q)] = max(mag);
+            mag(ind2(q)) = 0;
+            totalmag = [totalmag mag2(q)];
+            totalInd = [totalInd ind2(q)];
+        end
+        for t = 1:length(mag2)
+            freqPeaks(t) = freq(ind2(t));
+        end
+        freqPeaks = sort(freqPeaks)
+        dataSet = [dataSet; freqPeaks];
     end
 end
 
@@ -140,33 +149,94 @@ end
 % * Pick the parameters that you use for the cluster analysis and explain your choices.
 % * Show the "elbow" plot for the cluster analysis.
 % * Determine the specificity and sensitivity of the clustering.
-%
+K = 10;
+kmeansWSS(K, dataSet)
+K = 5;
+rng(1);
+opts = statset('Display', 'final');
+[idx, c] = kmeans(dataSet, K, 'Distance', 'cityblock', 'Replicates', 200, 'Options', opts, 'Start', 'cluster');
+
+sens1 = length(find(idx(1:100, :) == 1)) / 100
+sens2 = length(find(idx(100:200, :) == 1)) / 100
+sens3 = length(find(idx(200:300, :) == 1)) / 100
+sens4 = length(find(idx(300:400, :) == 1)) / 100
+sens5 = length(find(idx(400:500, :) == 1)) / 100
+
+spec1 = 400 / (100 - length(find(idx(1:100, :) == 1)))
+spec2 = 400 /(100 - length(find(idx(100:200, :) == 1)))
+spec3 = 400 / (100 - length(find(idx(200:300, :) == 1)))
+spec4 = 400 / (100 - length(find(idx(300:400, :) == 1)))
+spec5 = 400 / (100 - length(find(idx(400:500, :) == 1)))
+
+% figure;
+% plot3(dataSet(idx==1,1), dataSet(idx==1,2),dataSet(idx==1,3), 'b.', 'MarkerSize',12)
+% hold on
+% plot3(dataSet(idx==2,1), dataSet(idx==2,2),dataSet(idx==2,3), 'r.', 'MarkerSize',12)
+% plot3(dataSet(idx==3,1), dataSet(idx==3,2),dataSet(idx==3,3), 'y.', 'MarkerSize',12)
+% plot3(dataSet(idx==4,1), dataSet(idx==4,2),dataSet(idx==4,3), 'g.', 'MarkerSize',12)
+% plot3(dataSet(idx==5,1), dataSet(idx==5,2),dataSet(idx==5,3), 'c.', 'MarkerSize',12)
+% plot3(c(:,1), c(:,2),c(:,3),'kx','MarkerSize',15, 'LineWidth', 3) 
+% legend('Cluster 1','Cluster 2','Cluster 3', 'Cluster 4', 'Cluster 5','Centroids','Location','NW')
+% title 'Cluster Assignments and Centroids'
+% hold off
+
+% Silhouette plot
+figure
+[silh3, ~] = silhouette(dataSet, idx, 'cityblock');
+h = gca;
+h.Children.EdgeColor = [.8 .8 1];
+xlabel 'Silhouette Value'
+ylabel 'Cluster'
+
 %% 3. Method 2
+
 % *1. Calculating the MFCC*
 % * Calculate the MFCCs of your signals. Extract 10 feature values for each.
-
-wordSet = ["bird", "cat", "cow", "dog", "horse"];
-for r = 1:5
-    wordMFCC = zeros(100,10);
-    for i = 1:100
-        filePath = 'recordings/%s/%s%d.mat';
-        fileName = sprintf(filePath, wordSet(r), wordSet(r),i);
-        load(fileName);
-        wordMFCC(i,:) = mfcc(myRecording, 8000, 'WindowLength', length(myRecording), 'LogEnergy', 'Ignore', 'NumCoeffs', 10);
-    end
-    GMMs = fitgmdist(wordMFCC(:), 2);
-    save(sprintf('GMMs/gmm%s.mat', wordSet(r)), 'GMMs');
-end
-
 
 % *2. Model Generation*
 % 
 % * Use your different arrays of features to generate a GMM of each word.
 % * Determine the specificity and sensivity of the models, by comparing each
 % recording against all models in a posterior analysis.
-%
+
+clear; clc;
+wordSet = ["bird", "cat", "cow", "dog", "horse"];
+wordMFCC = zeros(500, 10);
+
+s = 1;
+for r = 1:500
+    filePath = 'recordings/%s/%s%d.mat';
+    fileName = sprintf(filePath, wordSet(s), wordSet(s), (mod(r, 100)== 0) * 100 + (mod(r, 100)~= 0) * mod(r, 100)); % ternary op, if mod(r,100) is 0 we are either at 100, 200, 300, 400 or 500, we get recording 100 for the respective word, else we get mod(r, 100) = r
+    load(fileName);
+    wordMFCC(r, :) = mfcc(myRecording, 8000, 'WindowLength', length(myRecording), 'LogEnergy', 'Ignore', 'NumCoeffs', 10);
+    if (mod(r, 100) == 0)       % r is 100, 200, 300, 400, 500
+        s = s + 1;              % counter for switching words from wordSet
+        mfccArr = wordMFCC(r - 99:r);
+        GMMs = fitgmdist(mfccArr(:), 2);
+        save(sprintf('GMMs/gmm%s.mat', wordSet(r / 100)), 'GMMs');
+    end
+end
+
+
+%%
+clc;
+
+posteriorRes = zeros(500, 5); % [nLogLBird, nLogLCat, nLogLCow, nLogLCow, nLogLHorse] mxn(m is no. of rec; n is likelihood which word it is)
+
+for v = 1:5
+    filename = sprintf('GMMs/gmm%s.mat', wordSet(v));
+    varname = sprintf('gmm%s', wordSet(v));
+    load(filename);
+    for k = 1:500
+        [~, nLogLWord] = posterior(GMMs, wordMFCC(k, :)');
+        posteriorRes(k, v) = nLogLWord;
+    end
+end
+
 %% 4. Comparing the methods
 % Use the calculated specificity and sensitivity for each method to compare
 % their performance - which method performs the best? Describe why you
 % think that this method is better than the other. List the pros and cons
 % for each of these methods when doing speech recognition.
+
+
